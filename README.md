@@ -445,79 +445,68 @@ We configure the service in `lnd.service`:
 sudo nano /etc/systemd/system/lnd.service
 ```
 ```sh
-# /mnt/ext/lnd/lnd.conf
+# /etc/systemd/system/lnd.service
 
-[Application Options]
-alias=J&PNODE
-# choose from: https://www.color-hex.com/
-color=#3dc9b3
-debuglevel=info
-maxpendingchannels=5
-listen=localhost
-  
-# Fee settings - default LND base fee = 1000 (mSat), default LND fee rate = 1 (ppm)
-bitcoin.basefee=1000
-bitcoin.feerate=1
-  
-# Minimum channel size (in satoshis, default is 20,000 sats)
-minchansize=100000
-  
-# Accept AMP (multi-paths) payments, wumbo channels and do not prevent the creation of anchor channel (default value)
-accept-amp=true
-protocol.wumbo-channels=true
-protocol.no-anchors=false
-  
-# Save on closing fees
-## The target number of blocks in which a cooperative close initiated by a remote peer should be confirmed (default: 10 blocks).
-coop-close-target-confs=24
+[Unit]
+Description=LND Lightning Network Daemon
+Wants=bitcoind.service
+After=bitcoind.service
 
-#########################
-# Improve startup speed # (from https://www.lightningnode.info/advanced-tools/lnd.conf by Openoms)
-#########################
-# If true, we'll attempt to garbage collect canceled invoices upon start.
-gc-canceled-invoices-on-startup=true
-# If true, we'll delete newly canceled invoices on the fly.
-gc-canceled-invoices-on-the-fly=true
-# Avoid historical graph data sync
-ignore-historical-gossip-filters=1
-# Enable free list syncing for the default bbolt database. This will decrease
-# start up time, but can result in performance degradation for very large
-# databases, and also result in higher memory usage. If "free list corruption"
-# is detected, then this flag may resolve things.
-sync-freelist=true
-# Avoid high startup overhead
-# If true, will apply a randomized staggering between 0s and 30s when
-# reconnecting to persistent peers on startup. The first 10 reconnections will be
-# attempted instantly, regardless of the flag's value
-stagger-initial-reconnect=true
+[Service]
 
-########################
-# Compact the database # (slightly modified from https://www.lightningnode.info/advanced-tools/lnd.conf by Openoms)
-########################
-# Can be used on demand by commenting in/out the two options below: it can take several minutes
-[bolt]
-# Whether the databases used within lnd should automatically be compacted on
-# every startup (and if the database has the configured minimum age). This is
-# disabled by default because it requires additional disk space to be available
-# during the compaction that is freed afterwards. In general compaction leads to
-# smaller database files.
-db.bolt.auto-compact=true
-# How long ago the last compaction of a database file must be for it to be
-# considered for auto compaction again. Can be set to 0 to compact on every
-# startup. (default: 168h; the time unit must be present, i.e. s, m or h, except for 0)
-db.bolt.auto-compact-min-age=168h
+# Service execution
+###################
 
-[Bitcoin]
-bitcoin.active=1
-bitcoin.testnet=1
-#bitcoin.mainnet=1
-bitcoin.node=bitcoind
+ExecStart=/usr/local/bin/lnd
 
-[tor]
-tor.active=true
-tor.v3=true
-tor.streamisolation=true
+
+# Process management
+####################
+
+Type=simple
+Restart=always
+RestartSec=30
+TimeoutSec=240
+LimitNOFILE=128000
+
+
+# Directory creation and permissions
+####################################
+
+# Run as bitcoin:bitcoin
+User=bitcoin
+Group=bitcoin
+
+# /run/lightningd
+RuntimeDirectory=lightningd
+RuntimeDirectoryMode=0710
+
+
+# Hardening measures
+####################
+
+# Provide a private /tmp and /var/tmp.
+PrivateTmp=true
+
+# Mount /usr, /boot/ and /etc read-only for the process.
+ProtectSystem=full
+
+# Disallow the process and all of its children to gain
+# new privileges through execve().
+NoNewPrivileges=true
+
+# Use a new /dev namespace only populated with API pseudo devices
+# such as /dev/null, /dev/zero and /dev/random.
+PrivateDevices=true
+
+# Deny the creation of writable and executable memory mappings.
+MemoryDenyWriteExecute=true
+
+
+[Install]
+WantedBy=multi-user.target
 ```
+:yellow_circle: We encountered some problems (disk space problems) with the installation of the Bitcoin core, which was first sync on the mainnet. We could not have the Bitcoin core sync fully on testnet even after cleaning the space. We could not start the lnd.
 
 # More
 
